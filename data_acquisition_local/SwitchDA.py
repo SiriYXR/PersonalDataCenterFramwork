@@ -87,7 +87,7 @@ def SwitchDA_GamePlayedRecord():
                 t1.titleId ,
                 t1.titleName ,
                 t1.lastPlayedAt,
-                COALESCE(t1.totalPlayedMinutes  - t2.play_time,0) play_time,
+                COALESCE(t1.totalPlayedMinutes  - t2.play_time,t1.totalPlayedMinutes) play_time,
                 NOW() create_time,
                 NOW() update_time 
         FROM (
