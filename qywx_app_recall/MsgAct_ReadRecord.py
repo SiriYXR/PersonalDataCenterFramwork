@@ -79,7 +79,7 @@ class ReadRecordAction():
                 db.close()  #关闭数据库连接
 
         # 阅读取消
-        if(len(args)==1 and args[0]=="阅读取消"):
+        if(len(args)==1 and (args[0]=="阅读取消" or args[0]=="取消阅读")):
             db = pymysql.connect(
                 host=self.db_hostname, 
                 port=3306,
@@ -115,7 +115,7 @@ class ReadRecordAction():
                 db.close()  #关闭数据库连接
 
         # 阅读开始
-        if(len(args)>1 and args[0]=="阅读开始"):
+        if(len(args)>1 and (args[0]=="阅读开始" or args[0]=="开始阅读")):
 
             name_s=[]
             page_start=None
@@ -218,7 +218,7 @@ class ReadRecordAction():
                 db.close()  #关闭数据库连接
 
         # 阅读结束
-        if(len(args)>=1 and args[0]=="阅读结束"):
+        if(len(args)>=1 and (args[0]=="阅读结束" or args[0]=="结束阅读")):
             
             page_start=None
             page_end=None
