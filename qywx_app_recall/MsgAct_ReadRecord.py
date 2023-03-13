@@ -217,6 +217,126 @@ class ReadRecordAction():
                 cursor.close() 
                 db.close()  #关闭数据库连接
 
+        # 阅读继续
+        if(len(args)==1 and (args[0]=="阅读继续" or args[0]=="继续阅读")):
+
+            db = pymysql.connect(
+                host=self.db_hostname, 
+                port=3306,
+                user=self.db_user,    #在这里输入用户名
+                password=self.db_passwd,     #在这里输入密码
+                charset='utf8mb4',
+                database=self.db_dbname     #指定操作的数据库
+                )
+
+            cursor = db.cursor() #创建游标对象
+
+            try:
+                # 检查是否有正在阅读的记录
+                sql = "SELECT book_name,datetime_start FROM "+self.book_read_record_table+" WHERE status='reading'"
+                print(sql)
+                cursor.execute(sql)
+                records=cursor.fetchall()
+                print(records)
+
+                if(len(records)>0):
+                    return "请先结束阅读 "+records[0][0]+" "+records[0][1].strftime("%Y-%m-%d %H:%M:%S")
+
+                # 查询最近一次阅读记录
+                sql = """
+                SELECT 
+                        book_name,
+                        is_finish
+                FROM """+self.book_read_record_table+"""   
+                WHERE status='end'
+                ORDER BY datetime_start DESC 
+                LIMIT 1
+                """
+                print(sql)
+                cursor.execute(sql)
+                records=cursor.fetchall()
+                print(records)
+
+                if(len(records)==0):
+                    return "没有历史阅读记录！"
+
+                book_name=records[0][0]
+                page_start=None
+                
+                # 检查最近一次阅读记录是否读完本书
+                if(records[0][1]==1):
+                    return "上次阅读已读完《"+book_name+"》，请重新选定一本书！"
+
+                records=self.NotionGetBookListByName(book_name)
+                
+                # 检查该书是否存在于书单中
+                if(len(records)==0):
+                    return  book_name+" 未录入书单"
+
+                if(len(records)>1):
+                    return  book_name+" 存在重复书单记录"
+
+                page_all=NotionPropertyParse_Number(records[0]["properties"]["总量"])
+                if page_all==None or page_all<=0:
+                    return  book_name+" 页码总量未设置"
+
+                sql = """
+                SELECT 
+                        MAX(page_end) AS last_page_end,
+                        SUM(read_time) AS read_time,
+                        COUNT(DISTINCT DATE_FORMAT(datetime_start ,'%Y-%m-%d')) AS read_days,
+                        SUM(read_time)/MAX(page_end) AS page_read_time_avg,
+                        SUM(read_time)/COUNT(DISTINCT DATE_FORMAT(datetime_start ,'%Y-%m-%d')) AS day_read_time_avg
+                FROM """+self.book_read_record_table+""" 
+                WHERE datetime_start >(
+                    SELECT COALESCE(MAX(datetime_start),'2000-01-01 00:00:00')
+                    FROM	"""+self.book_read_record_table+"""
+                    WHERE	is_finish=1 AND book_name='"""+book_name+"""'
+                )
+                AND book_name = '"""+book_name+"""'
+                """
+                print(sql)
+                cursor.execute(sql)
+                records=cursor.fetchall()
+                print(records)
+
+                # 获取上一次阅读结束页码
+                if page_start==None:
+                    page_start=0
+
+                    if len(records)>0 and records[0][0]!=None:
+                        page_start=float(records[0][0])
+
+                datetime_start=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                sql = "INSERT INTO "+self.book_read_record_table+"(book_name,page_start,datetime_start,status) VALUES('%s',%s,'%s','reading')"%(book_name,str(page_start),datetime_start)
+                print(sql)
+                cursor.execute(sql)
+                db.commit()
+                res="开始阅读 "+book_name+"\n于"+datetime_start+"第"+str(page_start)+"页"
+
+                # 开始阅读分析
+                if len(records)==0 or records[0][0]==None:
+                    res+="\n这是本书第一次阅读"
+                else:
+                    read_time_minute=records[0][1]
+                    read_time_day=records[0][2]
+                    read_percentage=float(records[0][0])/page_all*100
+                    read_time_last_minute=(page_all-float(records[0][0]))*float(records[0][3])
+                    read_time_last_day=math.ceil(((page_all-float(records[0][0]))*float(records[0][3]))/float(records[0][4]))
+                    read_time_finish_date=(datetime.now()+timedelta(days=read_time_last_day)).strftime('%Y年%m月%d日')
+
+                    res+="\n已阅读%s，阅读天数%d天，阅读进度%.2f"%(time_format(read_time_minute),read_time_day,float(read_percentage))+"%"
+                    res+="\n读完本书估计仍需%s，预计%d天后%s读完"%(time_format(read_time_last_minute),read_time_last_day,read_time_finish_date)
+
+                return res
+
+            except Exception as e:
+                print(e)
+                db.rollback()  #回滚事务
+            finally:
+                cursor.close() 
+                db.close()  #关闭数据库连接
+
         # 阅读结束
         if(len(args)>=1 and (args[0]=="阅读结束" or args[0]=="结束阅读")):
             
