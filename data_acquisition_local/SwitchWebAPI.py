@@ -6,7 +6,9 @@ import re
 import sys
 import os
 
+
 def NS_GetSessionToken(client_id,ua):
+
     '''Logs in to a Nintendo Account and returns a session_token.'''
     session = requests.Session()
 
@@ -20,10 +22,11 @@ def NS_GetSessionToken(client_id,ua):
         'Connection':                'keep-alive',
         'Cache-Control':             'max-age=0',
         'Upgrade-Insecure-Requests': '1',
-        'User-Agent':                'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Mobile Safari/537.36',
-        'Accept':                    'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8n',
+        'User-Agent':                'Mozilla/5.0 (Nintendo Switch; WebApplet) AppleWebKit/609.4 (KHTML, like Gecko) NF/6.0.2.15.4 NintendoBrowser/5.1.0.22433',
+        'Accept':                    'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'DNT':                       '1',
-        'Accept-Encoding':           'gzip,deflate,br',
+        'Accept-Language':           'zh-CN,zh;q=0.9,en;q=0.8',
+        'Accept-Encoding':           'gzip, deflate, br',
     }
     body = {
         'state':                               '',
@@ -31,7 +34,7 @@ def NS_GetSessionToken(client_id,ua):
         'client_id':                           client_id,
         'scope':                               'openid user user.mii user.email user.links[].id',
         'response_type':                       'session_token_code',
-        'session_token_code_challenge':        auth_code_challenge.replace(b"=", b""),
+        'session_token_code_challenge':        auth_code_challenge.replace(b"=", b"").decode('utf-8'),
         'session_token_code_challenge_method': 'S256',
         'theme':                               'login_form'
     }
@@ -50,7 +53,7 @@ def NS_GetSessionToken(client_id,ua):
             use_account_url = input("")
             if use_account_url == "skip":
                 return "skip"
-            session_token_code = re.search('de=(.*)&', use_account_url)
+            session_token_code = re.search('session_token_code=([^&]+)', use_account_url)
 
             # get session tocken
             app_head = {
@@ -66,7 +69,7 @@ def NS_GetSessionToken(client_id,ua):
             body = {
                 'client_id':                   client_id,
                 'session_token_code':          session_token_code.group(1),
-                'session_token_code_verifier': auth_code_verifier.replace(b"=", b"")
+                'session_token_code_verifier': auth_code_verifier.replace(b"=", b"").decode('utf-8')
             }
 
             url = 'https://accounts.nintendo.com/connect/1.0.0/api/session_token'
